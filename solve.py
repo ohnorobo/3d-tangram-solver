@@ -4,6 +4,17 @@
 from pprint import pprint
 from pprint import pformat
 from copy import deepcopy
+import operator
+
+
+# pruning ideas:
+#
+# all pieces must start at 000, even if this means they have negative z values
+# then only empty spaces in the board will be valid starting places
+#
+#
+#
+
 
 ITERATION = 0
 
@@ -69,7 +80,10 @@ ALL_PIECES = [
         [(0,0,0), (0,1,0), (0,1,1), (1,1,1)],
         # -
         #  - +
-        [(0,0,0), (0,1,0), (1,1,0), (1,1,1)],
+        [(0,0,0), (0,1,0), (1,1,0), (1,1,1)]
+]
+'''
+        ### placing only 9 pieces involves about 5 seconds and about 1500 backtracks
         # +
         #  - -
         [(0,0,0), (0,1,0), (1,1,0), (0,0,1)],
@@ -77,7 +91,7 @@ ALL_PIECES = [
         #  + -
         [(0,0,1), (0,1,0), (1,1,0), (0,1,1)]
       ]
-
+'''
 
 
 class Board:
@@ -114,18 +128,16 @@ class Board:
     # can a piece be placed on a board?
     def can_place(self, piece, loc):
         #print((piece, loc))
-        moved_spots = [piece_add(spot, loc) for spot in piece]
-        for spot in moved_spots:
-            if not spot in self.empty_spaces:
+        for spot in piece:
+            moved_spot = piece_add(spot, loc)
+            if not moved_spot in self.empty_spaces:
                 return False
         return True
 
 
 
 def piece_add(spot, loc):
-    sx, sy, sz = spot
-    lx, ly, lz = loc
-    return (sx+lx, sy+ly, sz+lz)
+    return tuple(map(operator.add, spot, loc))
 
 
 ### piece ###
@@ -286,10 +298,10 @@ def depth_first_search():
     return place_remaining(board, pieces)
 
 
-# iterations
+# iterations per layer
 # pieces * rotations * flip * locations
-# 11 * 6 * 2 * 15
-# 1980
+# 6 * 2 * 15
+# 180
 
 
 
@@ -342,8 +354,9 @@ def place_remaining(board, remaining_pieces):
                 else:
                     pass
 
-    #pprint({"backtracking remaining pieces:": len(remaining_pieces),
-    #        "number on board": len(board.pieces)})
+    if (len(remaining_pieces) > 5):
+        pprint({"backtracking remaining pieces:": len(remaining_pieces),
+                "number on board": len(board.pieces)})
     return False #if no placement for the piece works return false
 
 
