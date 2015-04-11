@@ -83,38 +83,45 @@ ALL_PIECES = [
         # - +
         #  - -
         [(0,0,0), (0,1,0), (1,0,0), (1,1,0), (1,0,1)],
+
         # - +
         #  - -
         [(0,0,0), (0,1,0), (1,0,0), (1,1,0), (1,0,1)], #duplicate piece
+
         #  + - -
         #
         [(0,0,0), (1,0,0), (2,0,0), (0,0,1)],
+
         #  - + |
         #
         [(0,0,0), (1,0,0), (1,0,1), (2,0,1)],
+
         #  - + -
         #
         [(0,0,0), (1,0,0), (2,0,0), (1,0,1)],
+
         # - |
         #  +
-        [(0,0,0), (0,1,0), (0,1,1), (1,0,1)]
-      ]
-
-'''
+        [(0,0,0), (0,1,0), (0,1,1), (1,0,1)],
 
         # - -
         #  +
         [(0,0,0), (1,0,0), (0,1,0), (0,1,1)],
+
         # -
         #  + |
         [(0,0,0), (0,1,0), (0,1,1), (1,1,1)],
+
         # -
         #  - +
-        [(0,0,0), (0,1,0), (1,1,0), (1,1,1)],
-        ### placing only 9 pieces involves about 5 seconds and about 1500 backtracks
+        [(0,0,0), (0,1,0), (1,1,0), (1,1,1)]
+]
+'''
+
         # +
         #  - -
-        [(0,0,0), (0,1,0), (1,1,0), (0,0,1)],
+        [(0,0,0), (0,1,0), (1,1,0), (0,0,1)]
+
         # |
         #  + -
         [(0,0,0), (0,1,-1), (1,1,-1), (0,1,0)]
@@ -130,12 +137,10 @@ class Board:
         self.pieces = [] #list of (xyz locations, pieces)
 
 
+    # prints coords and a visual grid representation of the board
     def __repr__(self):
         moved_pieces = [move_piece(piece[1], piece[0]) for piece in self.pieces]
         return pformat(moved_pieces) + self.format_grid(moved_pieces)
-        #pformat({"pieces": moved_pieces}) #,
-                        #print these at their final locations, not (loc, piece)
-                        #"spaces": self.empty_spaces})
 
     def format_grid(self, moved_pieces):
         # ~ is the 10th piece
@@ -232,16 +237,19 @@ def rotate(piece, rotations):
 
 
 # same as rotate, but also
-# flip a piece horizontally
-#  ⊆
-#  goes to
-#  ⊇
-# when a piece flips 180 degrees around the x axis
+# flips a piece 180 degrees around the x axis
+#  +
+# -
+#  -
+# goes to
+#  -
+# -
+#  +
 def rotate_and_flip(piece, rotations):
     return [rotate_flip_spot(spot, rotations) for spot in piece]
 
 
-#there are more elegant ways to do this, but they are a huge pain
+# rotate a spot 60*rotations degrees around 000
 def rotate_spot(spot, rotations):
     for r in range(rotations):
         # TODO is it inefficient to do 5 lookups here sometimes?
@@ -258,7 +266,7 @@ def rotate_flip_spot(spot, rotations):
 
 # "Sphere" of rotation for pieces being transformed (rotated/flipped) in 2d
 # no transformation will take a piece outside of this sphere
-# (this set is a 'group' under the rotation/flip operations, 
+# (this set is a 'group' under the rotation/flip operations,
 #  and all initial spots are in this set)
 #   ----- ----- ----- ----- -----
 # ----- (-1-2) ( 0-2) ( 1-2) -----
@@ -323,13 +331,6 @@ ROTATION_DICT, FLIP_DICT = create_transformations()
 
 
 
-def depth_first_search():
-    board = Board()
-    pieces = ALL_PIECES
-
-    return place_remaining(board, pieces)
-
-
 # iterations per layer
 # pieces * rotations * flip * locations
 # 6 * 2 * 15
@@ -374,7 +375,7 @@ def place_remaining(board, remaining_pieces):
 
                     #print(("placing", rotated, location))
                     board.place(rotated, location)
-                    print(board)
+                    #print(board)
 
                     solution = place_remaining(board, remaining_pieces)
 
@@ -394,8 +395,18 @@ def place_remaining(board, remaining_pieces):
     return False #if no placement for the piece works return false
 
 
+
+def depth_first_search():
+    board = Board()
+    pieces = ALL_PIECES
+    return place_remaining(board, pieces)
+
+
+
+
 if __name__ == "__main__":
     print(depth_first_search())
+    print(("ITERATIONS", ITERATION))
 
 
 
