@@ -27,6 +27,9 @@ import operator
 # that might dramatically remove some branches
 
 
+#TODO something is going wrong with moving pieces
+
+
 ITERATION = 0
 
 # the hexagonal board is an 'offset' 2d grid in a triangle shape with 3 layers
@@ -41,20 +44,20 @@ ITERATION = 0
 # three triangular layers
 ALL_SPACES = set([
     (0,0,0), (1,0,0), (2,0,0), (3,0,0), (4,0,0),
-    (0,1,0), (1,1,0), (2,1,0), (3,1,0),
-    (1,2,0), (2,2,0), (3,2,0),
-    (1,3,0), (2,3,0),
-    (2,4,0),
+        (0,1,0), (1,1,0), (2,1,0), (3,1,0),
+            (1,2,0), (2,2,0), (3,2,0),
+                (1,3,0), (2,3,0),
+                    (2,4,0),
     (0,0,1), (1,0,1), (2,0,1), (3,0,1), (4,0,1),
-    (0,1,1), (1,1,1), (2,1,1), (3,1,1),
-    (1,2,1), (2,2,1), (3,2,1),
-    (1,3,1), (2,3,1),
-    (2,4,1),
+        (0,1,1), (1,1,1), (2,1,1), (3,1,1),
+            (1,2,1), (2,2,1), (3,2,1),
+                (1,3,1), (2,3,1),
+                    (2,4,1),
     (0,0,2), (1,0,2), (2,0,2), (3,0,2), (4,0,2),
-    (0,1,2), (1,1,2), (2,1,2), (3,1,2),
-    (1,2,2), (2,2,2), (3,2,2),
-    (1,3,2), (2,3,2),
-    (2,4,2)
+        (0,1,2), (1,1,2), (2,1,2), (3,1,2),
+            (1,2,2), (2,2,2), (3,2,2),
+                (1,3,2), (2,3,2),
+                    (2,4,2)
 ])
 
 
@@ -94,7 +97,11 @@ ALL_PIECES = [
         [(0,0,0), (1,0,0), (2,0,0), (1,0,1)],
         # - |
         #  +
-        [(0,0,0), (0,1,0), (0,1,1), (1,0,1)],
+        [(0,0,0), (0,1,0), (0,1,1), (1,0,1)]
+      ]
+
+'''
+
         # - -
         #  +
         [(0,0,0), (1,0,0), (0,1,0), (0,1,1)],
@@ -105,9 +112,6 @@ ALL_PIECES = [
         #  - +
         [(0,0,0), (0,1,0), (1,1,0), (1,1,1)],
         ### placing only 9 pieces involves about 5 seconds and about 1500 backtracks
-      ]
-
-'''
         # +
         #  - -
         [(0,0,0), (0,1,0), (1,1,0), (0,0,1)],
@@ -128,7 +132,7 @@ class Board:
 
     def __repr__(self):
         moved_pieces = [move_piece(piece[1], piece[0]) for piece in self.pieces]
-        return self.format_grid(moved_pieces)
+        return pformat(moved_pieces) + self.format_grid(moved_pieces)
         #pformat({"pieces": moved_pieces}) #,
                         #print these at their final locations, not (loc, piece)
                         #"spaces": self.empty_spaces})
@@ -232,7 +236,7 @@ def rotate(piece, rotations):
 #  ⊆
 #  goes to
 #  ⊇
-# when a piece flips horizontally it flips 'around' 00
+# when a piece flips 180 degrees around the x axis
 def rotate_and_flip(piece, rotations):
     return [rotate_flip_spot(spot, rotations) for spot in piece]
 
@@ -244,7 +248,8 @@ def rotate_spot(spot, rotations):
         spot = ROTATION_DICT[spot]
     return spot
 
-# rotate a spot by 60*rotations degrees and flip it horizontally around 000
+# rotate a spot by 60*rotations degrees 
+# and flip it 180 degrees around the x axis
 def rotate_flip_spot(spot, rotations):
     spot = FLIP_DICT[rotate_spot(spot, rotations)]
     return spot
@@ -299,12 +304,8 @@ def create_transformations():
                 point3D = (x, y, z)
                 next_point3D = (xn, yn, z)
 
-                if y%2 == 0: # even
-                    flipx = -x # rotate around 000 so the piece ends up upside down
-                else:
-                    flipx = -x - 1  # accommodate the offset rows in the hex grid
-
-                flip_next_point3D = (flipx, -y, -z)
+                # rotate 180 degrees around x axis
+                flip_next_point3D = (x, -y, -z)
 
                 noflip[point3D] = next_point3D
                 flip[point3D] = flip_next_point3D
@@ -373,7 +374,7 @@ def place_remaining(board, remaining_pieces):
 
                     #print(("placing", rotated, location))
                     board.place(rotated, location)
-                    #print(board)
+                    print(board)
 
                     solution = place_remaining(board, remaining_pieces)
 
@@ -386,10 +387,10 @@ def place_remaining(board, remaining_pieces):
                 else:
                     pass
 
-    if (len(remaining_pieces) > 2):
-        pprint({"backtracking remaining pieces:": len(remaining_pieces),
-                "number on board": len(board.pieces),
-                "board": board})
+    #if (len(remaining_pieces) > 2):
+    #    pprint({"backtracking remaining pieces:": len(remaining_pieces),
+    #            "number on board": len(board.pieces),
+    #            "board": board})
     return False #if no placement for the piece works return false
 
 
@@ -409,9 +410,9 @@ class TestTransformations(unittest.TestCase):
     def test_flip_rotate(self):
         self.assertEqual(rotate_flip_spot((0,0,0), 1), (0,0,0))
 
-        self.assertEqual(rotate_flip_spot((1,0,1), 2), (0,-1,-1))
-        self.assertEqual(rotate_flip_spot((-1,2,-1), 3), (-1,2,1))
-        self.assertEqual(rotate_flip_spot((1,-1,0), 1), (-2,-1,0))
+        self.assertEqual(rotate_flip_spot((1,0,1), 2), (-1,-1,-1))
+        self.assertEqual(rotate_flip_spot((-1,2,-1), 3), (1,2,1))
+        self.assertEqual(rotate_flip_spot((1,-1,0), 1), (1,-1,0))
 
 
     def test_rotate(self):
@@ -420,4 +421,13 @@ class TestTransformations(unittest.TestCase):
         self.assertEqual(rotate_spot((1,0,1), 2), (-1,1,1))
         self.assertEqual(rotate_spot((-1,2,-1), 3), (1,-2,-1))
         self.assertEqual(rotate_spot((1,-1,0), 1), (1,1,0))
+
+    def test_rotate_piece(self):
+        self.assertEqual(rotate(ALL_PIECES[0], 1),
+                         [(0,0,0), (-1,1,0), (0,1,0), (0,2,0), (0,1,1)])
+
+    def test_flip_rotate_piece(self):
+        self.assertEqual(rotate_and_flip(ALL_PIECES[0], 1),
+                         [(0,0,0), (-1,-1,0), (0,-1,0), (0,-2,0), (0,-1,-1)])
+
 
