@@ -1,0 +1,17 @@
+
+
+
+Iterations to place per number of pieces
+(this isn't totally exploring the tree, since the solution will be found before then)
+
+1:  2
+2:  5
+3:  26
+4:  37
+5:  62
+6:  162
+7:  22389
+8:  2107997
+9:  2466953
+10: ?
+11: ?
