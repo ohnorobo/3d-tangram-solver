@@ -3,7 +3,7 @@
 
 from pprint import pprint
 from pprint import pformat
-from copy import deepcopy
+import copy
 import operator
 
 
@@ -11,23 +11,42 @@ import operator
 #
 # all pieces must start at 000, even if this means they have negative z values
 # then only empty spaces in the board will be valid starting places
+# -- this ended up reqiring a copy, but that doesn't seem to expensive
+# -- doesn't even show up in the profiler
+#
+# memoize move or maybe even move_piece
+# -- doesn't seem to help...
 #
 # make can_place faster
 #  - vectorize pieces and locs so adding them is faster
 #  - somehow do the set operations more quickly.
 #
-# integrate flip and rotate
-#
-# make flip also use precomputed positions in a hash table (and same for the f-r combination)
-#
 # use out-of-bounds checks instead of just in-board-spaces checks
-#   use oob checks in a spot-by-spot basis instead of piece by piece
+#  - this actually made things slower
+#
+# use oob checks in a spot-by-spot basis instead of piece by piece
 #
 # prune by checking for too-small sections of the open spaces left?
 # that might dramatically remove some branches
+#
+# put all the single-spot-on-a-layer pieces at the beginning of the list
+# prune if we get into a condition where there are single-spots left after they're used
+#
 
 
-#TODO something is going wrong with moving pieces
+
+# Memoization
+# http://stackoverflow.com/questions/1988804/what-is-memoization-and-how-can-i-use-it-in-python
+class Memoize:
+    def __init__(self, f):
+        self.f = f
+        self.memo = {}
+    def __call__(self, *args):
+        targs = [args[1]].append(args[0]) # [a b c] [d] -> [d a b c]
+        if not targs in self.memo:
+            self.memo[targs] = self.f(*args)
+        return self.memo[targs]
+
 
 
 ITERATION = 0
@@ -133,7 +152,7 @@ ALL_PIECES = [
 class Board:
 
     def __init__(self):
-        self.empty_spaces = deepcopy(ALL_SPACES)
+        self.empty_spaces = copy.deepcopy(ALL_SPACES)
         self.pieces = [] #list of (xyz locations, pieces)
 
 
@@ -141,6 +160,43 @@ class Board:
     def __repr__(self):
         moved_pieces = [move_piece(piece[1], piece[0]) for piece in self.pieces]
         return pformat(moved_pieces) + self.format_grid(moved_pieces)
+
+    #  3 layers
+    #  (0,0) (1,0) (2,0) (3,0) (4,0)
+    #     (0,1) (1,1) (2,1) (3,1)
+    #  ----- (1,2) (2,2) (3,2)
+    #     ----- (1,3) (2,3)
+    #  ----- ----- (2,4)
+    # these are s little irregular, so it's not worth abstracting
+    def in_bounds(self, spot):
+
+        z = spot[2]
+        if z < 0 or 2 < z:
+            return False
+
+        y = spot[1]
+        if y < 0 or 4 < y:
+            return False
+
+        x = spot[0]
+        if y == 4:
+            if x != 2:
+                return False
+        elif y == 3:
+            if x < 1 or 2 < x:
+                return False
+        elif y == 2:
+            if x < 1 or 3 < x:
+                return False
+        elif y == 1:
+            if x < 0 or 3 < x:
+                return False
+        elif y == 0:
+            if x < 0 or 4 < x:
+                return False
+
+        return True
+
 
     def format_grid(self, moved_pieces):
         # ~ is the 10th piece
@@ -178,12 +234,13 @@ class Board:
 
     # can a piece be placed on a board?
     def can_place(self, piece, loc):
-        #print((piece, loc))
         for spot in piece:
             moved_spot = move(spot, loc)
             if not moved_spot in self.empty_spaces:
                 return False
         return True
+
+
 
 
 
@@ -193,6 +250,8 @@ def move(spot, loc):
 def move_piece(piece, loc):
     return [move(spot, loc) for spot in piece]
 
+### amazing
+#move_piece = Memoize(move_piece)
 
 
 
@@ -278,7 +337,7 @@ def rotate_flip_spot(spot, rotations):
 
 
 # this precomputes all the simple spot rotations/flips around 000
-# so a runtime we can just do lookops instead of calculations
+# so a runtime we can just do lookups instead of calculations
 def create_transformations():
 
     # how a point rotates around 00
@@ -318,10 +377,6 @@ def create_transformations():
                 noflip[point3D] = next_point3D
                 flip[point3D] = flip_next_point3D
 
-                #pprint({"point": point3D,
-                #        "next": next_point3D,
-                #        "flip": flip_next_point3D})
-
     return noflip, flip
 
 ROTATION_DICT, FLIP_DICT = create_transformations()
@@ -350,12 +405,16 @@ def place_remaining(board, remaining_pieces):
     piece = remaining_pieces[0]
     remaining_pieces = remaining_pieces[1:]
 
+    # copy so we can modify the board recursivly while still iterating over this
+    # each piece (even when transformed) contains 000,
+    # so we can only place them as locations which are empty
+    available_spaces = copy.copy(board.empty_spaces)
+
     #print(("trying piece: ", piece))
 
     # rotation and flipping give all possible orientations
     for n in [0,1,2,3,4,5]:      # all 6 possible rotations
         for f in [True, False]:  # whether to flip
-
 
             if f: rotated = rotate_and_flip(piece, n)
             else: rotated = rotate(piece, n)
@@ -365,10 +424,7 @@ def place_remaining(board, remaining_pieces):
             if ITERATION % 100000 == 0:
                 print(("iteration", ITERATION))
 
-
-            for location in ALL_SPACES:
-                            #TODO does this need to be another copy?
-
+            for location in available_spaces:
                 ITERATION += 1
 
                 if board.can_place(rotated, location):
@@ -402,8 +458,6 @@ def depth_first_search():
     return place_remaining(board, pieces)
 
 
-
-
 if __name__ == "__main__":
     print(depth_first_search())
     print(("ITERATIONS", ITERATION))
@@ -414,7 +468,6 @@ if __name__ == "__main__":
 
 
 import unittest
-
 
 class TestTransformations(unittest.TestCase):
 

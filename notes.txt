@@ -15,3 +15,27 @@ Iterations to place per number of pieces
 9:  2466953
 10: ?
 11: ?
+
+
+
+
+
+Time results
+
+
+9 pieces:
+('ITERATIONS', 2466953)
+python solve.py  8.21s user 0.05s system 99% cpu 8.318 total
+python3 solve.py  7.20s user 0.06s system 98% cpu 7.355 total
+
+using deepcopies of empty spaces:
+('ITERATIONS', 975986)
+python3 solve.py  5.24s user 0.05s system 98% cpu 5.373 total
+
+using shallow copies
+('ITERATIONS', 975986)
+python3 solve.py  4.56s user 0.05s system 98% cpu 4.698 total
+
+
+
+
