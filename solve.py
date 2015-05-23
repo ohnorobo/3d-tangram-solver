@@ -37,15 +37,28 @@ import operator
 
 # Memoization
 # http://stackoverflow.com/questions/1988804/what-is-memoization-and-how-can-i-use-it-in-python
-class Memoize:
+class MemoizeMove:
     def __init__(self, f):
         self.f = f
         self.memo = {}
     def __call__(self, *args):
-        targs = [args[1]].append(args[0]) # [a b c] [d] -> [d a b c]
+        #targs = [args[1]].append(args[0]) # [a b c] [d] -> [d a b c]
+        targs = args[0] + args[1]
         if not targs in self.memo:
             self.memo[targs] = self.f(*args)
         return self.memo[targs]
+
+class MemoizeMovePiece:
+    def __init__(self, f):
+        self.f = f
+        self.memo = {}
+    def __call__(self, *args):
+        targs = args #args[1] + args[0] # [a b c] [x] -> [x a b c]
+        if not targs in self.memo:
+            self.memo[targs] = self.f(*args)
+        return self.memo[targs]
+
+
 
 
 
@@ -101,51 +114,50 @@ ALL_PIECES = [
 
         # - +
         #  - -
-        [(0,0,0), (0,1,0), (1,0,0), (1,1,0), (1,0,1)],
+        # this is the bad (duplicate) piece
+        #[(0,0,0), (0,1,0), (1,0,0), (1,1,0), (1,0,1)],
 
         # - +
         #  - -
-        [(0,0,0), (0,1,0), (1,0,0), (1,1,0), (1,0,1)], #duplicate piece
+        ((0,0,0), (0,1,0), (1,0,0), (1,1,0), (1,0,1)),
 
         #  + - -
         #
-        [(0,0,0), (1,0,0), (2,0,0), (0,0,1)],
+        ((0,0,0), (1,0,0), (2,0,0), (0,0,1)),
 
         #  - + |
         #
-        [(0,0,0), (1,0,0), (1,0,1), (2,0,1)],
+        ((0,0,0), (1,0,0), (1,0,1), (2,0,1)),
 
         #  - + -
         #
-        [(0,0,0), (1,0,0), (2,0,0), (1,0,1)],
+        ((0,0,0), (1,0,0), (2,0,0), (1,0,1)),
 
         # - |
         #  +
-        [(0,0,0), (0,1,0), (0,1,1), (1,0,1)],
+        ((0,0,0), (0,1,0), (0,1,1), (1,0,1)),
 
         # - -
         #  +
-        [(0,0,0), (1,0,0), (0,1,0), (0,1,1)],
+        ((0,0,0), (1,0,0), (0,1,0), (0,1,1)),
 
         # -
         #  + |
-        [(0,0,0), (0,1,0), (0,1,1), (1,1,1)],
+        ((0,0,0), (0,1,0), (0,1,1), (1,1,1)),
 
         # -
         #  - +
-        [(0,0,0), (0,1,0), (1,1,0), (1,1,1)]
-]
-'''
+        ((0,0,0), (0,1,0), (1,1,0), (1,1,1)),
 
         # +
         #  - -
-        [(0,0,0), (0,1,0), (1,1,0), (0,0,1)]
+        ((0,0,0), (0,1,0), (1,1,0), (0,0,1)),
 
         # |
         #  + -
-        [(0,0,0), (0,1,-1), (1,1,-1), (0,1,0)]
+        ((0,0,0), (0,1,-1), (1,1,-1), (0,1,0))
+]
 
-'''
 
 
 
@@ -167,7 +179,7 @@ class Board:
     #  ----- (1,2) (2,2) (3,2)
     #     ----- (1,3) (2,3)
     #  ----- ----- (2,4)
-    # these are s little irregular, so it's not worth abstracting
+    # these are a little irregular, so it's not worth abstracting
     def in_bounds(self, spot):
 
         z = spot[2]
@@ -240,6 +252,16 @@ class Board:
                 return False
         return True
 
+    # can a piece be placed on a board?
+    def alt_can_place(self, piece, loc):
+        moved_piece = move_piece(piece, loc)
+        for moved_spot in moved_piece:
+            if not moved_spot in self.empty_spaces:
+                return False
+        return True
+
+
+
 
 
 
@@ -251,7 +273,8 @@ def move_piece(piece, loc):
     return [move(spot, loc) for spot in piece]
 
 ### amazing
-#move_piece = Memoize(move_piece)
+move_piece = MemoizeMovePiece(move_piece)
+move = MemoizeMove(move)
 
 
 
@@ -291,7 +314,7 @@ def move_piece(piece, loc):
 #  -
 #  etc.
 def rotate(piece, rotations):
-    return [rotate_spot(spot, rotations) for spot in piece]
+    return tuple(rotate_spot(spot, rotations) for spot in piece)
     # rotate around 00
 
 
@@ -305,7 +328,7 @@ def rotate(piece, rotations):
 # -
 #  +
 def rotate_and_flip(piece, rotations):
-    return [rotate_flip_spot(spot, rotations) for spot in piece]
+    return tuple(rotate_flip_spot(spot, rotations) for spot in piece)
 
 
 # rotate a spot 60*rotations degrees around 000
@@ -427,11 +450,17 @@ def place_remaining(board, remaining_pieces):
             for location in available_spaces:
                 ITERATION += 1
 
-                if board.can_place(rotated, location):
+                if board.alt_can_place(rotated, location):
 
                     #print(("placing", rotated, location))
                     board.place(rotated, location)
                     #print(board)
+
+                    '''
+                    pprint({"backtracking remaining pieces:": len(remaining_pieces),
+                            "number on board": len(board.pieces),
+                            "board": board})
+                    '''
 
                     solution = place_remaining(board, remaining_pieces)
 
@@ -444,10 +473,12 @@ def place_remaining(board, remaining_pieces):
                 else:
                     pass
 
-    #if (len(remaining_pieces) > 2):
-    #    pprint({"backtracking remaining pieces:": len(remaining_pieces),
-    #            "number on board": len(board.pieces),
-    #            "board": board})
+    '''
+    pprint({"backtracking remaining pieces:": len(remaining_pieces),
+            "number on board": len(board.pieces),
+            "board": board})
+    '''
+
     return False #if no placement for the piece works return false
 
 
